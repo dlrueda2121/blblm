@@ -2,10 +2,19 @@
 % Please edit documentation in R/blblm.R
 \name{blbcoef}
 \alias{blbcoef}
-\title{compute the coefficients from fit}
+\title{BLB Coefficients}
 \usage{
 blbcoef(fit)
 }
+\arguments{
+\item{fit}{fitted blblm model}
+}
+\value{
+vector
+}
 \description{
-compute the coefficients from fit
+Computes the coefficients from model fit
+}
+\examples{
+blbcoef(blblm(mpg ~ wt * hp, data = mtcars, m = 3, B = 100))
 }

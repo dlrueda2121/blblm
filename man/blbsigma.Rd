@@ -2,10 +2,19 @@
 % Please edit documentation in R/blblm.R
 \name{blbsigma}
 \alias{blbsigma}
-\title{compute sigma from fit}
+\title{Sigma}
 \usage{
 blbsigma(fit)
 }
+\arguments{
+\item{fit}{blblm object}
+}
+\value{
+double
+}
 \description{
-compute sigma from fit
+Computes sigma from fit
+}
+\examples{
+blbsigma(blblm(mpg ~ wt * hp, data = mtcars, m = 3, B = 100))
 }

@@ -2,10 +2,28 @@
 % Please edit documentation in R/blblm.R
 \name{lm1}
 \alias{lm1}
-\title{estimate the regression estimates based on given the number of repetitions}
+\title{Computes estimates blb}
 \usage{
-lm1(formula, data, freqs)
+lm1(X, y, n, fastlm)
+}
+\arguments{
+\item{X}{matrix}
+
+\item{y}{vector}
+
+\item{n}{integer}
+
+\item{fastlm}{boolean}
+}
+\value{
+list
 }
 \description{
-estimate the regression estimates based on given the number of repetitions
+Computes the regression estimates for a blb dataset
+}
+\examples{
+n <- 7 ; p <- 2
+X <- matrix(rnorm(n * p), n, p)
+y <- rnorm(n)
+lm1(X, y, 10, fastlm = TRUE)
 }

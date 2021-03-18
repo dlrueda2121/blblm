@@ -2,10 +2,27 @@
 % Please edit documentation in R/blblm.R
 \name{lm_each_subsample}
 \alias{lm_each_subsample}
-\title{compute the estimates}
+\title{Computes estimates}
 \usage{
-lm_each_subsample(formula, data, n, B)
+lm_each_subsample(formula, data, n, B, fastlm)
+}
+\arguments{
+\item{formula}{regression formula}
+
+\item{data}{dataframe}
+
+\item{n}{integer}
+
+\item{B}{integer}
+
+\item{fastlm}{boolean}
+}
+\value{
+‘pdb’ with replicated atomic coordinates
 }
 \description{
-compute the estimates
+Computes the regression model estimates, and replicate lm1 process
+}
+\examples{
+lm_each_subsample(mpg ~ wt * hp, data = mtcars, n = 10, B = 100, fastlm = TRUE)
 }

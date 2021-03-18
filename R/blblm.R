@@ -1,6 +1,10 @@
+#' @aliases blblm-package
 #' @import purrr
 #' @import stats
+#' @import furrr
+#' @import future
 #' @importFrom magrittr %>%
+#' @importFrom utils capture.output
 #' @details
 #' Linear Regression with Little Bag of Bootstraps
 "_PACKAGE"
@@ -11,52 +15,138 @@
 utils::globalVariables(c("."))
 
 
+
+#' Builds blblm object
+#'
+#' Creates linear regression objects with little bag of bootstraps
+#'
+#' @param formula formula
+#' @param data dataframe
+#' @param m integer
+#' @param B integer
+#' @param workers integer
+#' @param fastlm boolean
+#'
+#' @return object class blblm
+#' @examples
+#' fit <- blblm(mpg ~ wt * hp, data = mtcars, m = 3, B = 100, fastlm = TRUE)
 #' @export
-blblm <- function(formula, data, m = 10, B = 5000) {
-  data_list <- split_data(data, m)
-  estimates <- map(
-    data_list,
-    ~ lm_each_subsample(formula = formula, data = ., n = nrow(data), B = B))
-  res <- list(estimates = estimates, formula = formula)
+blblm <- function(formula, data, m = 10, B = 5000, workers = 1, fastlm = TRUE) {
+  if(workers > 1){
+    suppressWarnings(future::plan(multiprocess, workers = workers))
+    options(future.rng.onMisuse = "ignore")
+    data_list <- split_data(data, m)
+    estimates <- future_map(
+      data_list,
+      ~ lm_each_subsample(formula = formula, data = ., n = nrow(data), B = B, fastlm = fastlm))
+    res <- list(estimates = estimates, formula = formula)
+
+  }else{
+    data_list <- split_data(data, m)
+    estimates <- map(
+      data_list,
+      ~ lm_each_subsample(formula = formula, data = ., n = nrow(data), B = B, fastlm = fastlm))
+    res <- list(estimates = estimates, formula = formula)
+
+  }
   class(res) <- "blblm"
   invisible(res)
+
 }
 
-
-#' split data into m parts of approximated equal sizes
+#' Splits data
+#'
+#' Splits data into m parts of approximated equal sizes
+#'
+#' @param data dataframe
+#' @param m integer
+#'
+#' @return list
+#' @examples
+#' split_data(data = mtcars, m = 3)
+#' @export
 split_data <- function(data, m) {
+  set.seed(141)
   idx <- sample.int(m, nrow(data), replace = TRUE)
   data %>% split(idx)
 }
 
-
-#' compute the estimates
-lm_each_subsample <- function(formula, data, n, B) {
+#' Computes estimates
+#'
+#' Computes the regression model estimates, and replicate lm1 process
+#'
+#' @param formula regression formula
+#' @param data dataframe
+#' @param n integer
+#' @param B integer
+#' @param fastlm boolean
+#'
+#' @return ‘pdb’ with replicated atomic coordinates
+#' @examples
+#' lm_each_subsample(mpg ~ wt * hp, data = mtcars, n = 10, B = 100, fastlm = TRUE)
+#' @export
+lm_each_subsample <- function(formula, data, n, B, fastlm) {
   # drop the original closure of formula,
   # otherwise the formula will pick a wrong variable from the global scope.
   environment(formula) <- environment()
   m <- model.frame(formula, data)
   X <- model.matrix(formula, m)
   y <- model.response(m)
-  replicate(B, lm1(X, y, n), simplify = FALSE)
+  replicate(B, lm1(X, y, n, fastlm), simplify = FALSE)
 }
 
-
-#' compute the regression estimates for a blb dataset
-lm1 <- function(X, y, n) {
+#' Computes estimates blb
+#'
+#' Computes the regression estimates for a blb dataset
+#'
+#' @param X matrix
+#' @param y vector
+#' @param n integer
+#' @param fastlm boolean
+#'
+#' @return list
+#' @examples
+#' n <- 7 ; p <- 2
+#' X <- matrix(rnorm(n * p), n, p)
+#' y <- rnorm(n)
+#' lm1(X, y, 10, fastlm = TRUE)
+#' @export
+lm1 <- function(X, y, n, fastlm) {
   freqs <- as.vector(rmultinom(1, n, rep(1, nrow(X))))
-  fit <- lm.wfit(X, y, freqs)
-  list(coef = blbcoef(fit), sigma = blbsigma(fit))
+  if(fastlm){
+    fit <- RcppEigen::fastLm(X, y, weigths = freqs)
+    list(coef = blbcoef(fit), sigma = blbsigma(fit))
+  }else{
+    fit <- lm.wfit(X, y, w = freqs)
+    list(coef = blbcoef(fit), sigma = blbsigma(fit))
+  }
 }
 
-
-#' compute the coefficients from fit
+#' BLB Coefficients
+#'
+#' Computes the coefficients from model fit
+#'
+#'
+#' @param fit fitted blblm model
+#'
+#' @return vector
+#' @export
+#' @examples
+#' blbcoef(blblm(mpg ~ wt * hp, data = mtcars, m = 3, B = 100))
 blbcoef <- function(fit) {
   coef(fit)
 }
 
-
-#' compute sigma from fit
+#' Sigma
+#'
+#' Computes sigma from fit
+#'
+#' @param fit blblm object
+#'
+#' @return double
+#' @examples
+#' blbsigma(blblm(mpg ~ wt * hp, data = mtcars, m = 3, B = 100))
+#' @export
 blbsigma <- function(fit) {
   p <- fit$rank
   e <- fit$residuals
